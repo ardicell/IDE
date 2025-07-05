@@ -8,7 +8,7 @@ async function handleRequest(request) {
   if (pathname === '/api') {
     return await handleApi(searchParams)
   } else {
-    return new Response(renderPage(), {
+    return new Response(renderPage(request), {
       headers: { 'Content-Type': 'text/html; charset=UTF-8' }
     })
   }
@@ -49,7 +49,9 @@ async function handleApi(searchParams) {
   }
 }
 
-function renderPage() {
+function renderPage(request) {
+  const baseUrl = new URL(request.url).origin;
+
   return `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -95,7 +97,7 @@ function renderPage() {
       var resi = document.getElementById("resi").value.trim();
       var pin = document.getElementById("pin").value.trim();
 
-      var response = await fetch("/api?resi=" + resi + "&pin=" + pin);
+      var response = await fetch("${baseUrl}/api?resi=" + resi + "&pin=" + pin);
       document.getElementById("loading").style.display = "none";
 
       if (!response.ok) {
@@ -104,6 +106,11 @@ function renderPage() {
       }
 
       var data = await response.json();
+      if (!data.data || data.data.length === 0) {
+        document.getElementById("result").innerHTML = "<p style='color:red;'>Data tidak ditemukan.</p>";
+        return;
+      }
+
       var detail = data.data[0];
       var logs = detail.scanLineVOS;
 
