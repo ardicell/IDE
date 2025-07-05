@@ -107,9 +107,9 @@ function renderPage() {
   'logs.forEach(function(log) {' +
   'html += "<div class=\"log-item\"><strong>" + log.operationTime + "</strong><br>" +' +
   '(log.operationBranchName || "-") + " ke " + (log.nextBranchName || "-") + "<br>" +' +
-  '"User: " + (log.operationUserName || "-") + "<br>" +' +
-  '(log.photoUrl ? "<img src='" + log.photoUrl + "' alt='Foto Log'>" : "") +' +
-  '"</div>";' +
+  '"User: " + (log.operationUserName || "-") + "<br>";' +
+  'if (log.photoUrl) { html += "<img src='" + log.photoUrl + "' alt='Foto Log'>"; }' +
+  'html += "</div>";' +
   '});' +
   'document.getElementById("result").innerHTML = html;' +
   '});' +
