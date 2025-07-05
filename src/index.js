@@ -4,17 +4,17 @@ async function handleRequest(request) { const { pathname, searchParams } = new U
 
 if (pathname === '/api') { return await handleApi(searchParams) } else { return new Response(renderPage(), { headers: { 'Content-Type': 'text/html; charset=UTF-8' } }) } }
 
-async function handleApi(searchParams) { const resi = searchParams.get('resi') const pin = searchParams.get('pin')
+async function handleApi(searchParams) { const resi = searchParams.get('resi'); const pin = searchParams.get('pin');
 
 if (!resi || !pin) { return new Response(JSON.stringify({ error: 'Nomor resi dan pin harus diisi.' }), { status: 400, headers: { 'Content-Type': 'application/json' } }) }
 
-const apiUrl = 'https://rest.idexpress.com/client/overt/track/attest/web/' + resi + ',' + pin
+const apiUrl = 'https://rest.idexpress.com/client/overt/track/attest/web/' + resi + ',' + pin;
 
-try { const response = await fetch(apiUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }) const data = await response.json()
+try { const response = await fetch(apiUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }); const data = await response.json();
 
-if (data.code !== 0 || !data.data || data.data.length === 0) { return new Response(JSON.stringify({ error: 'Data tidak ditemukan.' }), { status: 404, headers: { 'Content-Type': 'application/json' } }) } return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }) 
+if (data.code !== 0 || !data.data || data.data.length === 0) { return new Response(JSON.stringify({ error: 'Data tidak ditemukan.' }), { status: 404, headers: { 'Content-Type': 'application/json' } }); } return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }); 
 
-} catch (e) { return new Response(JSON.stringify({ error: 'Gagal mengambil data.' }), { status: 500, headers: { 'Content-Type': 'application/json' } }) } }
+} catch (e) { return new Response(JSON.stringify({ error: 'Gagal mengambil data.' }), { status: 500, headers: { 'Content-Type': 'application/json' } }); } }
 
 function renderPage() { return '' + '
 
