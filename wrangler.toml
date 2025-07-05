@@ -1,0 +1,4 @@
+
+name = "cek-resi-worker"
+main = "src/index.js"
+compatibility_date = "2025-07-05"
