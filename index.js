@@ -1,0 +1,166 @@
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request))
+})
+
+async function handleRequest(request) {
+  const { pathname, searchParams } = new URL(request.url)
+
+  if (pathname === '/api') {
+    return await handleApi(searchParams)
+  } else {
+    return new Response(renderPage(request), {
+      headers: { 'Content-Type': 'text/html; charset=UTF-8' }
+    })
+  }
+}
+
+async function handleApi(searchParams) {
+  const resi = searchParams.get('resi');
+  const pin = searchParams.get('pin');
+
+  if (!resi || !pin) {
+    return new Response(JSON.stringify({ error: 'Nomor resi dan pin harus diisi.' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  const apiUrl = 'https://rest.idexpress.com/client/overt/track/attest/web/' + resi + ',' + pin;
+
+  try {
+    const response = await fetch(apiUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const data = await response.json();
+
+    if (data.code !== 0 || !data.data || data.data.length === 0) {
+      return new Response(JSON.stringify({ error: 'Data tidak ditemukan.' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    return new Response(JSON.stringify(data), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'Gagal mengambil data.' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+function renderPage(request) {
+  const baseUrl = new URL(request.url).origin;
+
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cek Resi ID Express</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(135deg, #74ebd5, #ACB6E5); transition: background 0.5s; }
+    .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); max-width: 600px; width: 100%; }
+    h1 { text-align: center; margin-bottom: 20px; }
+    input, button { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
+    button { background: #007BFF; color: white; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .loading { text-align: center; margin-top: 20px; display: none; }
+    .result { margin-top: 20px; max-height: 500px; overflow-y: auto; word-wrap: break-word; white-space: pre-wrap; }
+    img { max-width: 100%; margin-top: 10px; border-radius: 10px; }
+    .log-item { background: #f9f9f9; padding: 10px; border-left: 4px solid #007BFF; margin-bottom: 10px; border-radius: 5px; cursor: pointer; }
+    .log-detail { display: none; padding-top: 10px; }
+    .dark-mode { background: linear-gradient(135deg, #1c1c1c, #434343); color: white; }
+    .dark-mode .container { background: #333; color: white; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Cek Resi ID Express</h1>
+    <form id="form">
+      <input type="text" id="resi" placeholder="Nomor Resi" required>
+      <input type="text" id="pin" placeholder="PIN Resi" required>
+      <button type="submit">Lacak</button>
+    </form>
+    <div class="loading" id="loading">Loading...</div>
+    <button id="darkModeToggle">Mode Gelap</button>
+    <div class="result" id="result"></div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.getElementById('form');
+      const loading = document.getElementById('loading');
+      const result = document.getElementById('result');
+      const darkModeToggle = document.getElementById('darkModeToggle');
+
+      darkModeToggle.addEventListener('click', function() {
+        document.body.classList.toggle('dark-mode');
+      });
+
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        loading.style.display = 'block';
+        result.innerHTML = '';
+
+        const resi = document.getElementById('resi').value.trim();
+        const pin = document.getElementById('pin').value.trim();
+
+        try {
+          const response = await fetch('${baseUrl}/api?resi=' + resi + '&pin=' + pin);
+          loading.style.display = 'none';
+
+          if (!response.ok) {
+            result.innerHTML = "<p style='color:red;'>Resi tidak ditemukan atau server error.</p>";
+            return;
+          }
+
+          const data = await response.json();
+          if (!data.data || data.data.length === 0) {
+            result.innerHTML = "<p style='color:red;'>Data tidak ditemukan.</p>";
+            return;
+          }
+
+          const detail = data.data[0];
+          const logs = detail.scanLineVOS;
+
+          let html = "<h3>Pengirim: " + detail.senderName + " (" + detail.senderCityName + ")</h3>";
+          html += "<h3>Penerima: " + detail.recipientName + " (" + detail.recipientCityName + ")</h3>";
+          html += "<h4>Status: " + detail.waybillStatus + "</h4>";
+          if (detail.photoUrl) { html += "<img src='" + detail.photoUrl + "' alt='Bukti Pengiriman'>"; }
+
+          html += "<h3>Log Perjalanan:</h3>";
+          for (let i = 0; i < logs.length; i++) {
+            let log = logs[i];
+            html += "<div class='log-item' onclick='toggleDetail(\"log" + i + "\")'><strong>" + log.operationTime + "</strong><br>" +
+              (log.operationBranchName || "-") + " ke " + (log.nextBranchName || "-") + "<br>" +
+              "User: " + (log.operationUserName || "-") + "<div class='log-detail' id='log" + i + "'>" +
+              "<p><strong>Bag No:</strong> " + log.bagNo + "</p>" +
+              "<p><strong>Plat:</strong> " + log.licensePlate + "</p>" +
+              "<p><strong>Kendaraan:</strong> " + log.vehicleTagNo + "</p>" +
+              "<p><strong>Kurir:</strong> " + log.courierName + "</p>" +
+              "<p><strong>Driver:</strong> " + log.driverName + "</p>";
+            if (log.photoUrl) { html += "<img src='" + log.photoUrl + "' alt='Foto Log'>"; }
+            html += "</div></div>";
+          }
+
+          result.innerHTML = html;
+
+        } catch (err) {
+          loading.style.display = 'none';
+          result.innerHTML = "<p style='color:red;'>Terjadi kesalahan.</p>";
+        }
+      });
+    });
+
+    function toggleDetail(id) {
+      const el = document.getElementById(id);
+      if (el.style.display === "block") {
+        el.style.display = "none";
+      } else {
+        el.style.display = "block";
+      }
+    }
+  </script>
+</body>
+</html>`;
+}
